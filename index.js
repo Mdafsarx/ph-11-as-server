@@ -38,6 +38,10 @@ async function run() {
         res.send(result);
     })
 
+    app.post('/blogs',async(req,res)=>{
+      
+    })
+
 
 
 
