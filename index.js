@@ -10,7 +10,7 @@ app.use(express.json())
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PAS}@cluster0.zgmhkd0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -45,25 +45,25 @@ async function run() {
       const result = await blogsData.insertOne(req.body);
       res.send(result);
     })
+    
+    
 
-
+    //  wishlists
     app.post('/wishlist', async (req, res) => {
       const result = await wishlist.insertOne(req.body);
       res.send(result);
     })
-
-    app.get('/wishlist', async (req, res) => {
-      const cursor = wishlist.find();
-      const result = await cursor.toArray();
-      res.send(result);
-    })
-
-    app.get('/wishlist/:email', async(req, res) => {
+    app.get('/wishlist/:email', async (req, res) => {
       console.log(req.params.email)
-      const filter={email:req.params.email}
+      const filter = { email: req.params.email }
       const cursor = wishlist.find(filter);
       const result = await cursor.toArray();
       res.send(result);
+    })
+    app.delete('/wishlist/:id', async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const result = await wishlist.deleteOne(query);
+      res.send(result)
     })
 
 
