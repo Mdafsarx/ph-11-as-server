@@ -34,7 +34,12 @@ async function run() {
 
     // blogs get
     app.get('/blogs', async (req, res) => {
-      const cursor = blogsData.find();
+      const search = req.query.search;
+      const category=req.query.category;
+      let query = {}
+      if (search) {query = {title: { $regex: search, $options: "i" }}}
+      if(category) query.category=category
+      const cursor = blogsData.find(query);
       const result = await cursor.toArray();
       res.send(result);
     })
@@ -45,8 +50,8 @@ async function run() {
       const result = await blogsData.insertOne(req.body);
       res.send(result);
     })
-    
-    
+
+
 
     //  wishlists
     app.post('/wishlist', async (req, res) => {
