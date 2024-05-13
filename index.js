@@ -1,18 +1,24 @@
-const express = require('express')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 require('dotenv').config()
 const app = express();
 const port = process.env.PORT || 2000;
+// middleWare
+app.use(cors({
+  origin: ['http://localhost:5173'],
+  credentials: true,
+}));
+app.use(express.json());
+app.use(cookieParser());
 
-app.use(cors())
-app.use(express.json())
 
 
 
 
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PAS}@cluster0.zgmhkd0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -21,6 +27,26 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production" ? true : false,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+}
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token
+  if (!token) return res.status(401).send({ message: 'unauthorized access' })
+    if (token) {
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: 'unauthorized access' })
+        }
+        req.user = decoded
+        next()
+      })
+    }
+  
+}
 
 async function run() {
   try {
@@ -35,22 +61,24 @@ async function run() {
     // blogs get
     app.get('/blogs', async (req, res) => {
       const search = req.query.search;
-      const category=req.query.category;
+      const category = req.query.category;
       let query = {}
-      if (search) {query = {title: { $regex: search, $options: "i" }}}
-      if(category) query.category=category
+      if (search) { query = { title: { $regex: search, $options: "i" } } }
+      if (category) query.category = category
       const cursor = blogsData.find(query);
       const result = await cursor.toArray();
       res.send(result);
     })
-
     // blogs post
-    app.post('/blogs', async (req, res) => {
-      console.log(req.body)
+    app.post('/blogs',verifyToken, async (req, res) => {
+      const tokenEmail = req.user.email
+      const email = req.body.email
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
       const result = await blogsData.insertOne(req.body);
       res.send(result);
     })
-
 
 
     //  wishlists
@@ -58,8 +86,12 @@ async function run() {
       const result = await wishlist.insertOne(req.body);
       res.send(result);
     })
-    app.get('/wishlist/:email', async (req, res) => {
-      console.log(req.params.email)
+    app.get('/wishlist/:email',verifyToken, async (req, res) => {
+      const tokenEmail = req.user.email
+      const email = req.params.email
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
       const filter = { email: req.params.email }
       const cursor = wishlist.find(filter);
       const result = await cursor.toArray();
@@ -70,6 +102,21 @@ async function run() {
       const result = await wishlist.deleteOne(query);
       res.send(result)
     })
+
+
+    // cookies
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
+
+      res.cookie("token", token, cookieOptions).send({ success: true });
+    });
+
+    app.post("/logout", async (req, res) => {
+      res
+        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+        .send({ success: true });
+    });
 
 
 
