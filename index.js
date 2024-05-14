@@ -80,9 +80,30 @@ async function run() {
       const result = await blogsData.insertOne(req.body);
       res.send(result);
     })
-    app.get('/blogs/:id',verifyToken, async (req, res) => {
+    app.get('/blogs/:id', verifyToken, async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) }
       const result = await blogsData.findOne(filter);
+      res.send(result)
+    })
+
+    app.put('/blog/:id', verifyToken, async(req, res) => {
+      const tokenEmail = req.user.email
+      const email = req.body.email
+      // console.log(email,tokenEmail)
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      const filter = { _id: new ObjectId(req.params.id) };
+      const updateDoc = {
+        $set: {
+          title: req.body.title,
+          image: req.body.image,
+          description: req.body.description,
+          longDescription: req.body.longDescription,
+          category: req.body.category,
+        },
+      };
+      const result = await blogsData.updateOne(filter, updateDoc)
       res.send(result)
     })
 
@@ -93,7 +114,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/comment/:id', verifyToken,  async (req, res) => {
+    app.get('/comment/:id', verifyToken, async (req, res) => {
       const cursor = comment.find({ ID: req.params.id });
       const result = await cursor.toArray();
       res.send(result);
