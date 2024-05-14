@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 2000;
 // middleWare
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: ['http://localhost:5173', 'https://scintillating-meringue-0cb917.netlify.app'],
   credentials: true,
 }));
 app.use(express.json());
@@ -36,16 +36,16 @@ const cookieOptions = {
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token
   if (!token) return res.status(401).send({ message: 'unauthorized access' })
-    if (token) {
-      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if (err) {
-          return res.status(401).send({ message: 'unauthorized access' })
-        }
-        req.user = decoded
-        next()
-      })
-    }
-  
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: 'unauthorized access' })
+      }
+      req.user = decoded
+      next()
+    })
+  }
+
 }
 
 async function run() {
@@ -55,6 +55,7 @@ async function run() {
 
     const blogsData = client.db("blogsDB").collection('blogs');
     const wishlist = client.db("blogsDB").collection('wishlist');
+    const comment = client.db("blogsDB").collection('comment');
 
 
 
@@ -70,7 +71,7 @@ async function run() {
       res.send(result);
     })
     // blogs post
-    app.post('/blogs',verifyToken, async (req, res) => {
+    app.post('/blogs', verifyToken, async (req, res) => {
       const tokenEmail = req.user.email
       const email = req.body.email
       if (tokenEmail !== email) {
@@ -79,6 +80,31 @@ async function run() {
       const result = await blogsData.insertOne(req.body);
       res.send(result);
     })
+    app.get('/blogs/:id',verifyToken, async (req, res) => {
+      const filter = { _id: new ObjectId(req.params.id) }
+      const result = await blogsData.findOne(filter);
+      res.send(result)
+    })
+
+
+    // comments 
+    app.post('/comment', async (req, res) => {
+      const result = await comment.insertOne(req.body);
+      res.send(result);
+    });
+
+    app.get('/comment/:id', verifyToken,  async (req, res) => {
+      const cursor = comment.find({ ID: req.params.id });
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+
+
+
+
+
+
 
 
     //  wishlists
@@ -86,7 +112,7 @@ async function run() {
       const result = await wishlist.insertOne(req.body);
       res.send(result);
     })
-    app.get('/wishlist/:email',verifyToken, async (req, res) => {
+    app.get('/wishlist/:email', verifyToken, async (req, res) => {
       const tokenEmail = req.user.email
       const email = req.params.email
       if (tokenEmail !== email) {
