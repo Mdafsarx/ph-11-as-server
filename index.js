@@ -66,7 +66,7 @@ async function run() {
       let query = {}
       if (search) { query = { title: { $regex: search, $options: "i" } } }
       if (category) query.category = category
-      const cursor = blogsData.find(query);
+      const cursor = blogsData.find(query).sort({Date:-1});
       const result = await cursor.toArray();
       res.send(result);
     })
@@ -85,7 +85,6 @@ async function run() {
       const result = await blogsData.findOne(filter);
       res.send(result)
     })
-
     app.put('/blog/:id', verifyToken, async(req, res) => {
       const tokenEmail = req.user.email
       const email = req.body.email
