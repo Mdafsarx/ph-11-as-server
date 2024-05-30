@@ -33,6 +33,9 @@ const cookieOptions = {
   secure: process.env.NODE_ENV === "production" ? true : false,
   sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
 }
+
+
+
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token
   if (!token) return res.status(401).send({ message: 'unauthorized access' })
@@ -56,6 +59,8 @@ async function run() {
     const blogsData = client.db("blogsDB").collection('blogs');
     const wishlist = client.db("blogsDB").collection('wishlist');
     const comment = client.db("blogsDB").collection('comment');
+    const User = client.db("blogsDB").collection('User');
+
 
 
 
@@ -66,10 +71,19 @@ async function run() {
       let query = {}
       if (search) { query = { title: { $regex: search, $options: "i" } } }
       if (category) query.category = category
-      const cursor = blogsData.find(query).sort({Date:-1});
+      const cursor = blogsData.find(query).sort({ Date: -1 });
       const result = await cursor.toArray();
       res.send(result);
     })
+
+
+    app.get('/blog/:email', async (req, res) => {
+      const filter = { email: req.params.email }
+      const result = await blogsData.find(filter).toArray();
+      res.send(result)
+    })
+
+
     // blogs post
     app.post('/blogs', verifyToken, async (req, res) => {
       const tokenEmail = req.user.email
@@ -85,7 +99,7 @@ async function run() {
       const result = await blogsData.findOne(filter);
       res.send(result)
     })
-    app.put('/blog/:id', verifyToken, async(req, res) => {
+    app.put('/blog/:id', verifyToken, async (req, res) => {
       const tokenEmail = req.user.email
       const email = req.body.email
       // console.log(email,tokenEmail)
@@ -112,7 +126,6 @@ async function run() {
       const result = await comment.insertOne(req.body);
       res.send(result);
     });
-
     app.get('/comment/:id', verifyToken, async (req, res) => {
       const cursor = comment.find({ ID: req.params.id });
       const result = await cursor.toArray();
@@ -120,8 +133,21 @@ async function run() {
     })
 
 
+    // user api created here
+    app.post('/user', async (req, res) => {
+      const query = { email: req.body.email }
+      const result = await User.findOne(query);
+      if (result) { return res.send({ message: 'allReady inserted' }) }
 
-
+      const user = await User.insertOne(req.body)
+      res.send(user)
+    })
+    app.get('/user', async (req, res) => {
+      const result = await User.find().toArray()
+      res.send(result)
+    })
+    
+    
 
 
 
@@ -148,8 +174,6 @@ async function run() {
       const result = await wishlist.deleteOne(query);
       res.send(result)
     })
-
-
     // cookies
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -157,7 +181,6 @@ async function run() {
 
       res.cookie("token", token, cookieOptions).send({ success: true });
     });
-
     app.post("/logout", async (req, res) => {
       res
         .clearCookie("token", { ...cookieOptions, maxAge: 0 })
